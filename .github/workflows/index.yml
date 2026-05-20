@@ -1,49 +1,100 @@
-name: Incremental Image Indexing Pipeline
+name: "Core :: Vector Indexing Engine"
 
 on:
   push:
+    branches:
+      - main
     paths:
-      - 'images/**' # Triggers only when changes are made inside the images folder
-  workflow_dispatch: # Allows you to run this pipeline manually from the GitHub UI
+      - 'images/**'
+  workflow_dispatch:
+
+# Prevent race conditions by cancelling in-flight runs if a new push arrives
+concurrency:
+  group: vector-indexing-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
-  contents: write # Grants the runner permission to push the updated index back to your repo
+  contents: write
 
 jobs:
-  build-and-index:
+  high-throughput-indexing:
+    name: "Execute Incremental Vector Generation"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
-    - name: Checkout Repository Code
+    - name: "1. Checkout Source Matrix"
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 2 # Faster fetch, but gives enough git history for rebase checks
 
-    - name: Set up Python Environment
+    - name: "2. Initialize Python Runtime Core"
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
-        cache: 'pip' # Caches pip dependencies to speed up future runs
 
-    - name: Install AI Framework Dependencies
+    - name: "3. Establish High-Speed PIP Dependency Cache"
+      uses: actions/cache@v4
+      id: pip-cache
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-v2-${{ hashFiles('**/generate_index.py') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-v2-
+
+    - name: "4. Establish Transformer Model Weight Cache"
+      uses: actions/cache@v4
+      id: model-cache
+      with:
+        path: ~/.cache/huggingface/hub
+        key: ${{ runner.os }}-hf-clip-vit-base-p32
+        restore-keys: |
+          ${{ runner.os }}-hf-
+
+    - name: "5. Inject Ultra-Lightweight Vector Dependencies"
       run: |
-        python -m pip install --upgrade pip
-        pip install torch torchvision transformers pillow
+        python -m pip install --upgrade pip setuptools wheel
+        # Install CPU-only PyTorch to shave off 1.5GB of unnecessary CUDA binary downloads
+        pip install --extra-index-url https://pytorch.org torch torchvision
+        pip install transformers pillow
 
-    - name: Run Incremental Indexing Script
+    - name: "6. Run High-Throughput Matrix Indexer"
+      env:
+        HF_HUB_DISABLE_SYMLINKS_WARNING: "1"
       run: python generate_index.py
 
-    - name: Commit and Push Updated Index File
+    - name: "7. Atomic Git Convergence and Synchronization Loop"
       run: |
         git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@://github.com"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
         
-        # Pull latest changes to avoid out-of-sync git conflicts
-        git pull origin main --rebase
-        
-        # Check if index changed, commit, and push safely
+        # Stage updates cleanly
         git add image_index.json
+        
         if git diff --staged --quiet; then
-          echo "No index alterations found. Skipping repository commit."
-        else
-          git commit -m "chore: automated incremental vector index update [skip ci]"
-          git push origin HEAD:main
+          echo "⚡ Synchronization Verified: Vector matrices are completely identical. Exiting."
+          exit 0
+        fi
+        
+        # Elite Loop: Rebase under a retry token to survive concurrent automated actions pushes
+        git commit -m "chore: automated incremental vector index update [skip ci]"
+        
+        MAX_RETRIES=3
+        RETRY_COUNT=0
+        SUCCESS=false
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+          echo "Attempting secure repository push (Attempt $((RETRY_COUNT+1))/$MAX_RETRIES)..."
+          if git pull origin main --rebase && git push origin HEAD:main; then
+            SUCCESS=true
+            break
+          fi
+          echo "⚠️ Concurrency collision detected. Backing off and retrying in 5 seconds..."
+          sleep 5
+          RETRY_COUNT=$((RETRY_COUNT+1))
+        done
+        
+        if [ "$SUCCESS" = false ]; then
+          echo "❌ Critical Error: Failed to push index due to persistent repository locks."
+          exit 1
         fi
