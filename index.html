@@ -3,182 +3,429 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Heavyweight PDF & Image Converter (Local & Secure)</title>
-    <!-- Load heavy-lifting libraries via CDN -->
+    <title>Enterprise Document Engine</title>
+    <!-- Core Engine Core CDN -->
     <script src="https://cloudflare.com"></script>
     <script src="https://cloudflare.com"></script>
     <style>
-        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; background: #f4f7f6; color: #333; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        h2 { margin-top: 0; color: #2c3e50; }
-        .btn-group { display: flex; gap: 10px; margin-bottom: 20px; }
-        button { background: #3498db; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        button:hover { background: #2980b9; }
-        button:disabled { background: #bdc3c7; cursor: not-allowed; }
-        .tab-btn { background: #e0e0e0; color: #666; }
-        .tab-btn.active { background: #2c3e50; color: white; }
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --accent-cyan: #06b6d4;
+            --accent-violet: #8b5cf6;
+            --text-main: #f8fafc;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .engine-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            width: 100%;
+            max-width: 750px;
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 800;
+            margin: 0 0 10px 0;
+            background: linear-gradient(to right, var(--accent-cyan), var(--accent-violet));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            color: #94a3b8;
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: rgba(15, 23, 42, 0.6);
+            padding: 6px;
+            border-radius: 14px;
+            margin-bottom: 30px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .tab-trigger {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            padding: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tab-trigger.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .dropzone-container {
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            padding: 50px 20px;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.2);
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .dropzone-container:hover, .dropzone-container.dragover {
+            border-color: var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.04);
+        }
+
+        .dropzone-text {
+            font-size: 15px;
+            color: #cbd5e1;
+            margin-top: 12px;
+        }
+
+        .dropzone-subtext {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 6px;
+        }
+
+        .file-pill {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--glass-border);
+            padding: 14px 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .file-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .file-name {
+            font-size: 14px;
+            font-weight: 500;
+            max-width: 400px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-size {
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .progress-wrapper {
+            margin-top: 25px;
+            display: none;
+        }
+
+        .progress-metrics {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        .progress-track {
+            background: #0f172a;
+            height: 8px;
+            border-radius: 999px;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-violet));
+            border-radius: 999px;
+            transition: width 0.1s linear;
+        }
+
+        .action-button {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, #0891b2 100%);
+            color: white;
+            border: none;
+            padding: 16px;
+            font-size: 15px;
+            font-weight: 700;
+            border-radius: 14px;
+            margin-top: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(6, 182, 212, 0.3);
+            transition: transform 0.1s, opacity 0.2s;
+        }
+
+        .action-button:hover {
+            opacity: 0.95;
+        }
+
+        .action-button:active {
+            transform: scale(0.99);
+        }
+
+        .action-button:disabled {
+            background: #334155;
+            color: #64748b;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
         input[type="file"] { display: none; }
-        .upload-label { display: block; border: 2px dashed #3498db; padding: 40px; text-align: center; border-radius: 8px; cursor: pointer; background: #fdfdfd; font-weight: 500; }
-        .upload-label:hover { background: #f2f9ff; }
-        #status { font-weight: bold; margin: 15px 0; color: #e67e22; }
-        .file-info { background: #e8f4fd; padding: 10px; border-radius: 6px; font-size: 14px; margin-top: 10px; display: none; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h2>🔄 Huge File Converter (Up to 1GB+)</h2>
-        <p style="color: #666; font-size: 14px;">All processing happens locally in your browser RAM. Your data never touches a server.</p>
-        
-        <div class="btn-group">
-            <button id="modePdfToImg" class="tab-btn active" onclick="switchMode('pdf-to-img')">PDF to Images</button>
-            <button id="modeImgToPdf" class="tab-btn" onclick="switchMode('img-to-pdf')">Images to PDF</button>
+    <div class="engine-container">
+        <div class="header">
+            <h1>Enterprise Document Engine</h1>
+            <p>High-Throughput Isolated Browser Processing Architecture</p>
         </div>
 
-        <label for="fileInput" class="upload-label" id="dropZone">
-            📁 Click to choose files or drop them here
-        </label>
-        <input type="file" id="fileInput" onchange="handleFileSelect()">
-        
-        <div id="fileInfo" class="file-info"></div>
-        <div id="status">Ready</div>
-        
-        <button id="actionBtn" onclick="processFiles()" disabled>Convert & Download</button>
+        <div class="nav-tabs">
+            <button id="tabPdfToImg" class="tab-trigger active" onclick="setEngineMode('pdf-to-img')">PDF Engine ➔ Image Stream</button>
+            <button id="tabImgToPdf" class="tab-trigger" onclick="setEngineMode('img-to-pdf')">Image Stack ➔ PDF Document</button>
+        </div>
+
+        <div class="dropzone-container" id="dropZone" onclick="document.getElementById('hiddenFileInput').click()">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-cyan);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <div class="dropzone-text" id="dropzoneText">Mount target PDF document file</div>
+            <div class="dropzone-subtext">Zero cloud footprints — Limits: 1.5GB RAM Allocation</div>
+        </div>
+
+        <input type="file" id="hiddenFileInput" onchange="registerSelectedFiles()">
+
+        <div id="filePill" class="file-pill" style="display: none;">
+            <div class="file-details">
+                <div class="file-name" id="labelFileName">-</div>
+                <div class="file-size" id="labelFileSize">-</div>
+            </div>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+
+        <div class="progress-wrapper" id="progressContainer">
+            <div class="progress-metrics">
+                <span id="statusMessage">Processing pipeline initializing...</span>
+                <span id="statusPercentage">0%</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </div>
+
+        <button id="executeBtn" class="action-button" onclick="runPipeline()" disabled>Initialize Conversion Pipeline</button>
     </div>
 
     <script>
-        // Configure PDF.js Worker globally
+        // Bind Core Workers
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cloudflare.com';
 
-        let currentMode = 'pdf-to-img';
-        let selectedFiles = [];
+        let engineMode = 'pdf-to-img';
+        let stagedFiles = [];
 
-        function switchMode(mode) {
-            currentMode = mode;
-            document.getElementById('modePdfToImg').classList.toggle('active', mode === 'pdf-to-img');
-            document.getElementById('modeImgToPdf').classList.toggle('active', mode === 'img-to-pdf');
-            document.getElementById('fileInput').multiple = (mode === 'img-to-pdf');
-            resetUI();
+        // Drag and Drop Interceptors
+        const dropZone = document.getElementById('dropZone');
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }, false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); }, false);
+        });
+        dropZone.addEventListener('drop', (e) => {
+            stagedFiles = Array.from(e.dataTransfer.files);
+            evaluateFiles();
+        });
+
+        function setEngineMode(mode) {
+            engineMode = mode;
+            document.getElementById('tabPdfToImg').classList.toggle('active', mode === 'pdf-to-img');
+            document.getElementById('tabImgToPdf').classList.toggle('active', mode === 'img-to-pdf');
+            document.getElementById('hiddenFileInput').multiple = (mode === 'img-to-pdf');
+            document.getElementById('dropzoneText').innerText = mode === 'pdf-to-img' ? 'Mount target PDF document file' : 'Mount target Image stack sequence';
+            wipePipeline();
         }
 
-        function resetUI() {
-            selectedFiles = [];
-            document.getElementById('fileInput').value = '';
-            document.getElementById('fileInfo').style.display = 'none';
-            document.getElementById('status').innerText = 'Ready';
-            document.getElementById('actionBtn').disabled = true;
+        function wipePipeline() {
+            stagedFiles = [];
+            document.getElementById('hiddenFileInput').value = '';
+            document.getElementById('filePill').style.display = 'none';
+            document.getElementById('progressContainer').style.display = 'none';
+            document.getElementById('executeBtn').disabled = true;
         }
 
-        function handleFileSelect() {
-            const input = document.getElementById('fileInput');
-            selectedFiles = Array.from(input.files);
-            if (selectedFiles.length === 0) return;
+        function registerSelectedFiles() {
+            stagedFiles = Array.from(document.getElementById('hiddenFileInput').files);
+            evaluateFiles();
+        }
 
-            const infoDiv = document.getElementById('fileInfo');
-            infoDiv.style.display = 'block';
+        function evaluateFiles() {
+            if (stagedFiles.length === 0) return;
             
-            if (currentMode === 'pdf-to-img') {
-                const file = selectedFiles[0];
-                infoDiv.innerText = `Selected PDF: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+            const pill = document.getElementById('filePill');
+            const nameLabel = document.getElementById('labelFileName');
+            const sizeLabel = document.getElementById('labelFileSize');
+            
+            pill.style.display = 'flex';
+            if (engineMode === 'pdf-to-img') {
+                const target = stagedFiles[0];
+                nameLabel.innerText = target.name;
+                sizeLabel.innerText = `${(target.size / 1024 / 1024).toFixed(2)} MB Matrix Resource`;
             } else {
-                infoDiv.innerText = `Selected ${selectedFiles.length} image file(s)`;
+                const totalBytes = stagedFiles.reduce((acc, f) => acc + f.size, 0);
+                nameLabel.innerText = `Sequence Stack (${stagedFiles.length} frames allocated)`;
+                sizeLabel.innerText = `${(totalBytes / 1024 / 1024).toFixed(2)} MB Collective Load`;
             }
             
-            document.getElementById('status').innerText = 'Files loaded. Ready to convert!';
-            document.getElementById('actionBtn').disabled = false;
+            document.getElementById('executeBtn').disabled = false;
         }
 
-        async function processFiles() {
-            const status = document.getElementById('status');
-            const actionBtn = document.getElementById('actionBtn');
-            actionBtn.disabled = true;
+        async function runPipeline() {
+            const btn = document.getElementById('executeBtn');
+            const progContainer = document.getElementById('progressContainer');
+            
+            btn.disabled = true;
+            progContainer.style.display = 'block';
 
             try {
-                if (currentMode === 'pdf-to-img') {
-                    await convertPdfToImages(selectedFiles[0], status);
+                if (engineMode === 'pdf-to-img') {
+                    await executePdfToImagePipeline(stagedFiles[0]);
                 } else {
-                    await convertImagesToPdf(selectedFiles, status);
+                    await executeImageToPdfPipeline(stagedFiles);
                 }
-            } catch (error) {
-                status.style.color = '#e74c3c';
-                status.innerText = 'Error: ' + error.message;
-                console.error(error);
+            } catch (err) {
+                updateMetrics(`Hardware Execution Interrupted: ${err.message}`, 0, true);
             } finally {
-                actionBtn.disabled = false;
+                btn.disabled = false;
             }
         }
 
-        async function convertPdfToImages(file, statusDiv) {
-            statusDiv.innerText = 'Reading massive PDF structure... Please wait.';
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+        function updateMetrics(msg, pct, isError = false) {
+            const msgEl = document.getElementById('statusMessage');
+            const pctEl = document.getElementById('statusPercentage');
+            const barEl = document.getElementById('progressBar');
             
-            statusDiv.innerText = `Found ${pdf.numPages} pages. Starting conversion...`;
+            msgEl.innerText = msg;
+            msgEl.style.color = isError ? '#ef4444' : '#94a3b8';
+            pctEl.innerText = `${Math.round(pct)}%`;
+            barEl.style.width = `${pct}%`;
+        }
 
-            for (let i = 1; i <= pdf.numPages; i++) {
-                statusDiv.innerText = `Rendering page ${i} of ${pdf.numPages}...`;
-                const page = await pdf.getPage(i);
+        async function executePdfToImagePipeline(file) {
+            updateMetrics('Opening stream array allocations...', 5);
+            const buffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({data: buffer, worker: true}).promise;
+            const totalPages = pdf.numPages;
+
+            for (let i = 1; i <= totalPages; i++) {
+                const pct = 5 + ((i / totalPages) * 95);
+                updateMetrics(`Rasterizing block matrix ${i} of ${totalPages}...`, pct);
                 
-                // Adjust scale for quality vs memory footprint. 1.5 is balanced.
-                const viewport = page.getViewport({ scale: 1.5 }); 
+                const page = await pdf.getPage(i);
+                // 2.0 Scale gives razor-sharp 4K printable resolution text assets
+                const viewport = page.getViewport({ scale: 2.0 }); 
                 const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
+                const ctx = canvas.getContext('2d');
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
 
-                await page.render({ canvasContext: context, viewport: viewport }).promise;
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
                 
-                // Convert canvas data directly to download trigger
-                const imgUrl = canvas.toDataURL('image/jpeg', 0.85);
-                triggerDownload(imgUrl, `${file.name}_page_${i}.jpg`);
+                // Pure Base64 extraction loop bound to DOM system event loop directly
+                const imgUrl = canvas.toDataURL('image/jpeg', 0.92);
+                triggerDirectDownload(imgUrl, `${file.name.replace('.pdf','')}_matrix_p${i}.jpg`);
+                
+                // Clear hardware GPU backing canvas memory structures immediately 
+                canvas.width = 0; canvas.height = 0;
             }
-            statusDiv.innerText = '✅ Finished downloading all pages as images!';
+            updateMetrics('⚡ Conversion cycle finalized successfully.', 100);
         }
 
-        async function convertImagesToPdf(files, statusDiv) {
-            statusDiv.innerText = 'Creating blank PDF container...';
-            const pdfDoc = await PDFLib.PDFDocument.create();
+        async function executeImageToPdfPipeline(files) {
+            updateMetrics('Spinning virtual structural map matrix...', 10);
+            const doc = await PDFLib.PDFDocument.create();
 
-            // Sort files alphabetically so sequence matches page numbers
+            // Natural Sort Engine
             files.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
 
             for (let i = 0; i < files.length; i++) {
-                statusDiv.innerText = `Embedding image ${i + 1} of ${files.length}...`;
-                const imgFile = files[i];
-                const imgBytes = await imgFile.arrayBuffer();
+                const stepPct = 10 + ((i / files.length) * 80);
+                const file = files[i];
+                updateMetrics(`Parsing block data fragment [${i+1}/${files.length}]...`, stepPct);
                 
-                let embeddedImg;
-                if (imgFile.type === 'image/png') {
-                    embeddedImg = await pdfDoc.embedPng(imgBytes);
+                const imgBytes = await file.arrayBuffer();
+                let embeddedFrame;
+                
+                if (file.type === 'image/png' || file.name.endsWith('.png')) {
+                    embeddedFrame = await doc.embedPng(imgBytes);
                 } else {
-                    embeddedImg = await pdfDoc.embedJpg(imgBytes);
+                    embeddedFrame = await doc.embedJpg(imgBytes);
                 }
 
-                const page = pdfDoc.addPage([embeddedImg.width, embeddedImg.height]);
-                page.drawImage(embeddedImg, {
-                    x: 0,
-                    y: 0,
-                    width: embeddedImg.width,
-                    height: embeddedImg.height,
-                });
+                const page = doc.addPage([embeddedFrame.width, embeddedFrame.height]);
+                page.drawImage(embeddedFrame, { x: 0, y: 0, width: embeddedFrame.width, height: embeddedFrame.height });
             }
 
-            statusDiv.innerText = 'Compressing and finalizing 1GB binary stream...';
-            const pdfBytes = await pdfDoc.save();
+            updateMetrics('Serializing physical file binary output streams...', 95);
+            const pdfBytes = await doc.save();
             const blob = new Blob([pdfBytes], { type: "application/pdf" });
-            const docUrl = URL.createObjectURL(blob);
+            const outputUrl = URL.createObjectURL(blob);
             
-            triggerDownload(docUrl, "converted_images.pdf");
-            statusDiv.innerText = '✅ PDF compiled and downloaded successfully!';
+            triggerDirectDownload(outputUrl, "compiled_stack_output.pdf");
+            updateMetrics('⚡ PDF structural synthesis clear.', 100);
+            
+            setTimeout(() => URL.revokeObjectURL(outputUrl), 60000);
         }
 
-        function triggerDownload(url, filename) {
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+        function triggerDirectDownload(url, title) {
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = title;
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
         }
     </script>
 </body>
