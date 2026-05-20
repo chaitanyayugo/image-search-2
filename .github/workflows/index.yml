@@ -1,0 +1,49 @@
+name: Incremental Image Indexing Pipeline
+
+on:
+  push:
+    paths:
+      - 'images/**' # Triggers only when changes are made inside the images folder
+  workflow_dispatch: # Allows you to run this pipeline manually from the GitHub UI
+
+permissions:
+  contents: write # Grants the runner permission to push the updated index back to your repo
+
+jobs:
+  build-and-index:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python Environment
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip' # Caches pip dependencies to speed up future runs
+
+    - name: Install AI Framework Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install torch torchvision transformers pillow
+
+    - name: Run Incremental Indexing Script
+      run: python generate_index.py
+
+    - name: Commit and Push Updated Index File
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@://github.com"
+        
+        # Pull latest changes to avoid out-of-sync git conflicts
+        git pull origin main --rebase
+        
+        # Check if index changed, commit, and push safely
+        git add image_index.json
+        if git diff --staged --quiet; then
+          echo "No index alterations found. Skipping repository commit."
+        else
+          git commit -m "chore: automated incremental vector index update [skip ci]"
+          git push origin HEAD:main
+        fi
