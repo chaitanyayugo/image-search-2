@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heavyweight PDF & Image Converter (Local & Secure)</title>
+    <!-- Load heavy-lifting libraries via CDN -->
+    <script src="https://cloudflare.com"></script>
+    <script src="https://cloudflare.com"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; background: #f4f7f6; color: #333; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        h2 { margin-top: 0; color: #2c3e50; }
+        .btn-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        button { background: #3498db; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background: #2980b9; }
+        button:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .tab-btn { background: #e0e0e0; color: #666; }
+        .tab-btn.active { background: #2c3e50; color: white; }
+        input[type="file"] { display: none; }
+        .upload-label { display: block; border: 2px dashed #3498db; padding: 40px; text-align: center; border-radius: 8px; cursor: pointer; background: #fdfdfd; font-weight: 500; }
+        .upload-label:hover { background: #f2f9ff; }
+        #status { font-weight: bold; margin: 15px 0; color: #e67e22; }
+        .file-info { background: #e8f4fd; padding: 10px; border-radius: 6px; font-size: 14px; margin-top: 10px; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>🔄 Huge File Converter (Up to 1GB+)</h2>
+        <p style="color: #666; font-size: 14px;">All processing happens locally in your browser RAM. Your data never touches a server.</p>
+        
+        <div class="btn-group">
+            <button id="modePdfToImg" class="tab-btn active" onclick="switchMode('pdf-to-img')">PDF to Images</button>
+            <button id="modeImgToPdf" class="tab-btn" onclick="switchMode('img-to-pdf')">Images to PDF</button>
+        </div>
+
+        <label for="fileInput" class="upload-label" id="dropZone">
+            📁 Click to choose files or drop them here
+        </label>
+        <input type="file" id="fileInput" onchange="handleFileSelect()">
+        
+        <div id="fileInfo" class="file-info"></div>
+        <div id="status">Ready</div>
+        
+        <button id="actionBtn" onclick="processFiles()" disabled>Convert & Download</button>
+    </div>
+
+    <script>
+        // Configure PDF.js Worker globally
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cloudflare.com';
+
+        let currentMode = 'pdf-to-img';
+        let selectedFiles = [];
+
+        function switchMode(mode) {
+            currentMode = mode;
+            document.getElementById('modePdfToImg').classList.toggle('active', mode === 'pdf-to-img');
+            document.getElementById('modeImgToPdf').classList.toggle('active', mode === 'img-to-pdf');
+            document.getElementById('fileInput').multiple = (mode === 'img-to-pdf');
+            resetUI();
+        }
+
+        function resetUI() {
+            selectedFiles = [];
+            document.getElementById('fileInput').value = '';
+            document.getElementById('fileInfo').style.display = 'none';
+            document.getElementById('status').innerText = 'Ready';
+            document.getElementById('actionBtn').disabled = true;
+        }
+
+        function handleFileSelect() {
+            const input = document.getElementById('fileInput');
+            selectedFiles = Array.from(input.files);
+            if (selectedFiles.length === 0) return;
+
+            const infoDiv = document.getElementById('fileInfo');
+            infoDiv.style.display = 'block';
+            
+            if (currentMode === 'pdf-to-img') {
+                const file = selectedFiles[0];
+                infoDiv.innerText = `Selected PDF: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+            } else {
+                infoDiv.innerText = `Selected ${selectedFiles.length} image file(s)`;
+            }
+            
+            document.getElementById('status').innerText = 'Files loaded. Ready to convert!';
+            document.getElementById('actionBtn').disabled = false;
+        }
+
+        async function processFiles() {
+            const status = document.getElementById('status');
+            const actionBtn = document.getElementById('actionBtn');
+            actionBtn.disabled = true;
+
+            try {
+                if (currentMode === 'pdf-to-img') {
+                    await convertPdfToImages(selectedFiles[0], status);
+                } else {
+                    await convertImagesToPdf(selectedFiles, status);
+                }
+            } catch (error) {
+                status.style.color = '#e74c3c';
+                status.innerText = 'Error: ' + error.message;
+                console.error(error);
+            } finally {
+                actionBtn.disabled = false;
+            }
+        }
+
+        async function convertPdfToImages(file, statusDiv) {
+            statusDiv.innerText = 'Reading massive PDF structure... Please wait.';
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+            
+            statusDiv.innerText = `Found ${pdf.numPages} pages. Starting conversion...`;
+
+            for (let i = 1; i <= pdf.numPages; i++) {
+                statusDiv.innerText = `Rendering page ${i} of ${pdf.numPages}...`;
+                const page = await pdf.getPage(i);
+                
+                // Adjust scale for quality vs memory footprint. 1.5 is balanced.
+                const viewport = page.getViewport({ scale: 1.5 }); 
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                await page.render({ canvasContext: context, viewport: viewport }).promise;
+                
+                // Convert canvas data directly to download trigger
+                const imgUrl = canvas.toDataURL('image/jpeg', 0.85);
+                triggerDownload(imgUrl, `${file.name}_page_${i}.jpg`);
+            }
+            statusDiv.innerText = '✅ Finished downloading all pages as images!';
+        }
+
+        async function convertImagesToPdf(files, statusDiv) {
+            statusDiv.innerText = 'Creating blank PDF container...';
+            const pdfDoc = await PDFLib.PDFDocument.create();
+
+            // Sort files alphabetically so sequence matches page numbers
+            files.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+
+            for (let i = 0; i < files.length; i++) {
+                statusDiv.innerText = `Embedding image ${i + 1} of ${files.length}...`;
+                const imgFile = files[i];
+                const imgBytes = await imgFile.arrayBuffer();
+                
+                let embeddedImg;
+                if (imgFile.type === 'image/png') {
+                    embeddedImg = await pdfDoc.embedPng(imgBytes);
+                } else {
+                    embeddedImg = await pdfDoc.embedJpg(imgBytes);
+                }
+
+                const page = pdfDoc.addPage([embeddedImg.width, embeddedImg.height]);
+                page.drawImage(embeddedImg, {
+                    x: 0,
+                    y: 0,
+                    width: embeddedImg.width,
+                    height: embeddedImg.height,
+                });
+            }
+
+            statusDiv.innerText = 'Compressing and finalizing 1GB binary stream...';
+            const pdfBytes = await pdfDoc.save();
+            const blob = new Blob([pdfBytes], { type: "application/pdf" });
+            const docUrl = URL.createObjectURL(blob);
+            
+            triggerDownload(docUrl, "converted_images.pdf");
+            statusDiv.innerText = '✅ PDF compiled and downloaded successfully!';
+        }
+
+        function triggerDownload(url, filename) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    </script>
+</body>
+</html>
